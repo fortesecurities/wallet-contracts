@@ -22,6 +22,7 @@ contract Stablecoin is
     bytes32 public constant BLACKLIST_ROLE = keccak256("BLACKLIST_ROLE");
     bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
     bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
+    bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -43,6 +44,7 @@ contract Stablecoin is
         _grantRole(BLACKLIST_ROLE, _admin);
         _grantRole(PAUSE_ROLE, _admin);
         _grantRole(MINT_ROLE, _admin);
+        _grantRole(BURN_ROLE, _admin);
     }
 
     /**
@@ -50,7 +52,7 @@ contract Stablecoin is
      * @return uint8 Number of decimals.
      */
     function decimals() public view virtual override returns (uint8) {
-        return 2;
+        return 6;
     }
 
     /**
@@ -122,20 +124,20 @@ contract Stablecoin is
 
     /**
      * @dev Burns tokens from the caller's address.
-     * Can only be called by an account with the MINT_ROLE.
+     * Can only be called by an account with the BURN_ROLE.
      * @param _amount Amount of tokens to burn.
      */
-    function burn(uint256 _amount) public onlyRole(MINT_ROLE) {
+    function burn(uint256 _amount) public onlyRole(BURN_ROLE) {
         _burn(_msgSender(), _amount);
     }
 
     /**
      * @dev Burns tokens from a specified address, assuming they have the required allowance.
-     * Can only be called by an account with the MINT_ROLE.
+     * Can only be called by an account with the BURN_ROLE.
      * @param _account Address to burn tokens from.
      * @param _amount Amount of tokens to burn.
      */
-    function burn(address _account, uint256 _amount) public onlyRole(MINT_ROLE) {
+    function burn(address _account, uint256 _amount) public onlyRole(BURN_ROLE) {
         _spendAllowance(_account, _msgSender(), _amount);
         _burn(_account, _amount);
     }
