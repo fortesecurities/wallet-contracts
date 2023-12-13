@@ -1,7 +1,20 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
-using LinkedListLibrary for LinkedListLibrary.LinkedList;
+using LinkedListLibrary for LinkedList;
+
+struct Node {
+    uint128 previous;
+    uint128 next;
+}
+
+struct LinkedList {
+    uint128 _first;
+    uint128 _last;
+    uint128 _next;
+    uint128 _length;
+    mapping(uint128 => Node) _nodes;
+}
 
 /**
  * @dev Library for a doubly linked list that stores mono-increasing uint128 values.
@@ -9,19 +22,6 @@ using LinkedListLibrary for LinkedListLibrary.LinkedList;
  * Uses uint128 for storage efficiency.
  */
 library LinkedListLibrary {
-    struct Node {
-        uint128 previous;
-        uint128 next;
-    }
-
-    struct LinkedList {
-        uint128 _first;
-        uint128 _last;
-        uint128 _next;
-        uint128 _length;
-        mapping(uint128 => Node) _nodes;
-    }
-
     /**
      * @dev Generates a new mono-increasing value, pushes it to back of the list and returns it.
      * @param self The linked list.

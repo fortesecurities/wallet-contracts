@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./Limiter.sol";
-import "./Beneficiaries.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Limiter, LimiterLibrary, Transfer} from "./Limiter.sol";
+import {Beneficiary, Beneficiaries, BeneficiariesLibrary} from "./Beneficiaries.sol";
+import {ExtendedAccessControlUpgradeable} from "./ExtendedAccessControlUpgradeable.sol";
 
 using LimiterLibrary for Limiter;
 using BeneficiariesLibrary for Beneficiaries;
@@ -15,18 +15,21 @@ interface IToken is IERC20 {
     function burn(uint256 _amount) external;
 }
 
-contract Wallet is AccessControlUpgradeable {
+contract Wallet is ExtendedAccessControlUpgradeable {
+    error LimitExceeded();
+
     // Define constants for various roles using the keccak256 hash of the role names.
     bytes32 public constant BENEFICIARY_ROLE = keccak256("BENEFICIARY_ROLE");
     bytes32 public constant BENEFICIARY_LIMIT_ROLE = keccak256("BENEFICIARY_LIMIT_ROLE");
+    bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
     bytes32 public constant LIMIT_ROLE = keccak256("LIMIT_ROLE");
     bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
     bytes32 public constant TRANSFER_ROLE = keccak256("TRANSFER_ROLE");
-        
+
     IToken public token; // Reference to the token contract.
     Limiter private limiter; // Limits the amount of transfers possible within a given timeframe.
     Beneficiaries private beneficiaries; // Keeps track of beneficiaries allowed by this contract.
-    
+
     /**
      * @dev Emitted when a beneficiary with address `address`, 24-hour transfer limit `limit`
      * and cooldown period `period` (in seconds) is added to the list of beneficiaries.
@@ -102,13 +105,14 @@ contract Wallet is AccessControlUpgradeable {
      * @param _token Address of the token contract.
      */
     function initialize(address _admin, IToken _token) public initializer {
-        __AccessControl_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, _admin); 
-        _grantRole(BENEFICIARY_ROLE, _admin);
-        _grantRole(BENEFICIARY_LIMIT_ROLE, _admin);
-        _grantRole(LIMIT_ROLE, _admin);
-        _grantRole(MINT_ROLE, _admin);
-        _grantRole(TRANSFER_ROLE, _admin);
+        __ExtendedAccessControl_init();
+        _addRole(BENEFICIARY_ROLE);
+        _addRole(BENEFICIARY_LIMIT_ROLE);
+        _addRole(BURN_ROLE);
+        _addRole(LIMIT_ROLE);
+        _addRole(MINT_ROLE);
+        _addRole(TRANSFER_ROLE);
+        _grantRoles(_admin);
         token = _token;
         limiter.interval = 24 hours;
     }
@@ -298,7 +302,9 @@ contract Wallet is AccessControlUpgradeable {
      * @param _amount Amount of tokens to be transferred.
      */
     function transfer(address _beneficiary, uint _amount) public onlyRole(TRANSFER_ROLE) {
-        limiter.addTransfer(_amount, "Limit exceeded");
+        if (!limiter.addTransfer(_amount)) {
+            revert LimitExceeded();
+        }
         beneficiaries.addBeneficiaryTransfer(_beneficiary, _amount);
         token.transfer(_beneficiary, _amount);
         emit Transferred(_beneficiary, _amount);
@@ -317,7 +323,7 @@ contract Wallet is AccessControlUpgradeable {
     }
 
     /**
-     * @dev Mints tokens to the wallet. 
+     * @dev Mints tokens to the wallet.
      * Can only be called by an account with the MINT_ROLE.
      * @param _amount Amount of tokens to be minted.
      */
@@ -327,11 +333,11 @@ contract Wallet is AccessControlUpgradeable {
     }
 
     /**
-     * @dev Burns tokens from the wallet. 
-     * Can only be called by an account with the MINT_ROLE.
+     * @dev Burns tokens from the wallet.
+     * Can only be called by an account with the BURN_ROLE.
      * @param _amount Amount of tokens to be minted.
      */
-    function burn(uint _amount) public onlyRole(MINT_ROLE) {
+    function burn(uint _amount) public onlyRole(BURN_ROLE) {
         token.burn(_amount);
         emit Burned(_amount);
     }

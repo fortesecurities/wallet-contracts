@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
-import "./Limiter.sol";
-import "./LinkedList.sol";
+import {Limiter, LimiterLibrary, Transfer} from "./Limiter.sol";
+import {LinkedList, LinkedListLibrary} from "./LinkedList.sol";
 
 using LimiterLibrary for Limiter;
-using LinkedListLibrary for LinkedListLibrary.LinkedList;
+using LinkedListLibrary for LinkedList;
 
 struct InternalBeneficiary {
     address account;
@@ -37,7 +37,7 @@ struct Beneficiary {
 }
 
 struct Beneficiaries {
-    LinkedListLibrary.LinkedList _keys;
+    LinkedList _keys;
     mapping(uint128 => InternalBeneficiary) _beneficiaries;
     mapping(address => uint128) _addressKeys;
 }
@@ -45,6 +45,11 @@ struct Beneficiaries {
 using BeneficiariesLibrary for Beneficiaries;
 
 library BeneficiariesLibrary {
+    error BeneficiaryAlreadyExists(address beneficiary);
+    error BeneficiaryNotEnabled(address beneficiary);
+    error BeneficiaryNotDefined(address beneficiary);
+    error BeneficiaryLimitExceeded(address beneficiary);
+
     function addBeneficiary(
         Beneficiaries storage self,
         address _beneficiary,
@@ -52,7 +57,9 @@ library BeneficiariesLibrary {
         uint _limit,
         uint _cooldown
     ) internal {
-        require(self._addressKeys[_beneficiary] == 0, "Beneficiary already exists");
+        if (self._addressKeys[_beneficiary] != 0) {
+            revert BeneficiaryAlreadyExists(_beneficiary);
+        }
         uint128 key = self._keys.generate();
         self._beneficiaries[key].account = _beneficiary;
         self._beneficiaries[key].enabledAt = block.timestamp + _cooldown;
@@ -86,13 +93,19 @@ library BeneficiariesLibrary {
 
     function addBeneficiaryTransfer(Beneficiaries storage self, address _beneficiary, uint _amount) internal {
         InternalBeneficiary storage beneficiary = _getBeneficiary(self, _beneficiary);
-        require(block.timestamp >= beneficiary.enabledAt, "Beneficiary is not enabled");
-        beneficiary.limiter.addTransfer(_amount, "Beneficiary limit exceeded");
+        if (block.timestamp < beneficiary.enabledAt) {
+            revert BeneficiaryNotEnabled(_beneficiary);
+        }
+        if (!beneficiary.limiter.addTransfer(_amount)) {
+            revert BeneficiaryLimitExceeded(_beneficiary);
+        }
     }
 
     function _getBeneficiaryKey(Beneficiaries storage self, address _beneficiary) private view returns (uint128) {
         uint128 key = self._addressKeys[_beneficiary];
-        require(key != 0, "Beneficiary does not exist");
+        if (key == 0) {
+            revert BeneficiaryNotDefined(_beneficiary);
+        }
         return key;
     }
 

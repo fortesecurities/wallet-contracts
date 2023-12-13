@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
-import "./LinkedList.sol";
+import {LinkedListLibrary, LinkedList} from "./LinkedList.sol";
 
-using LinkedListLibrary for LinkedListLibrary.LinkedList;
+using LinkedListLibrary for LinkedList;
 
 struct Transfer {
     int amount;
@@ -13,7 +13,7 @@ struct Transfer {
 struct Limiter {
     uint interval;
     uint limit;
-    LinkedListLibrary.LinkedList _keys;
+    LinkedList _keys;
     mapping(uint128 => Transfer) _transfers;
 }
 
@@ -77,8 +77,8 @@ library LimiterLibrary {
         _addTransferNode(self, _amount);
     }
 
-    function addTransfer(Limiter storage self, uint _amount, string memory errorMessage) internal {
+    function addTransfer(Limiter storage self, uint _amount) internal returns (bool) {
         _addUncheckedTransfer(self, int(_amount));
-        require(self.remainingLimit() >= 0, errorMessage);
+        return self.remainingLimit() >= 0;
     }
 }

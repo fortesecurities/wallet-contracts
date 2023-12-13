@@ -1,31 +1,51 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 
-contract BlacklistableUpgradable is Initializable {
-    mapping(address => bool) internal blacklistedAddresses;
+contract BlacklistableUpgradable is Initializable, ContextUpgradeable {
+    /// @custom:storage-location erc7201:fortesecurities.BlacklistableUpgradable
+    struct BlacklistableUpgradableStorage {
+        mapping(address => bool) blacklisted;
+    }
 
-    function __ERC20Blacklistable_init() internal onlyInitializing {}
+    // keccak256(abi.encode(uint256(keccak256("fortesecurities.BlacklistableUpgradable")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant BlacklistableUpgradableStorageLocation =
+        0x8ecc1f59a42058624dce41c94b4f8aa95e42142a4f40b370d396f94cbf8ede00;
 
-    function __ERC20Blacklistable_init_unchained() internal onlyInitializing {}
+    function _getBlacklistableUpgradableStorage() private pure returns (BlacklistableUpgradableStorage storage $) {
+        assembly {
+            $.slot := BlacklistableUpgradableStorageLocation
+        }
+    }
+
+    error Blacklisted(address account);
+
+    function __Blacklistable_init() internal onlyInitializing {
+        __Blacklistable_init_unchained();
+    }
+
+    function __Blacklistable_init_unchained() internal onlyInitializing {}
 
     /**
      * @dev Emitted when an `account` is blacklisted.
      */
-    event Blacklisted(address account);
+    event Blacklist(address account);
 
     /**
      * @dev Emitted when an `account` is removed from the blacklist.
      */
-    event UnBlacklisted(address account);
+    event UnBlacklist(address account);
 
     /**
      * @dev Throws if argument account is blacklisted
      * @param account The address to check
      */
     modifier notBlacklisted(address account) {
-        require(!blacklistedAddresses[account], "Blacklistable: account is blacklisted");
+        if (isBlacklisted(account)) {
+            revert Blacklisted(account);
+        }
         _;
     }
 
@@ -34,7 +54,8 @@ contract BlacklistableUpgradable is Initializable {
      * @param account The address to check
      */
     function isBlacklisted(address account) public view returns (bool) {
-        return blacklistedAddresses[account];
+        BlacklistableUpgradableStorage storage $ = _getBlacklistableUpgradableStorage();
+        return $.blacklisted[account];
     }
 
     /**
@@ -42,8 +63,9 @@ contract BlacklistableUpgradable is Initializable {
      * @param account The address to blacklist
      */
     function _blacklist(address account) internal virtual {
-        blacklistedAddresses[account] = true;
-        emit Blacklisted(account);
+        BlacklistableUpgradableStorage storage $ = _getBlacklistableUpgradableStorage();
+        $.blacklisted[account] = true;
+        emit Blacklist(account);
     }
 
     /**
@@ -51,14 +73,8 @@ contract BlacklistableUpgradable is Initializable {
      * @param account The address to remove from the blacklist
      */
     function _unBlacklist(address account) internal virtual {
-        blacklistedAddresses[account] = false;
-        emit UnBlacklisted(account);
+        BlacklistableUpgradableStorage storage $ = _getBlacklistableUpgradableStorage();
+        $.blacklisted[account] = false;
+        emit UnBlacklist(account);
     }
-
-    /**
-     * @dev This empty reserved space is put in place to allow future versions to add new
-     * variables without shifting down storage in the inheritance chain.
-     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-     */
-    uint256[50] private __gap;
 }

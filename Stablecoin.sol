@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import "./BlacklistableUpgradable.sol";
+import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
+import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {ERC20PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeable.sol";
+import {ERC20PermitUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {ERC20BlacklistableUpgradable} from "./ERC20BlacklistableUpgradable.sol";
+import {ExtendedAccessControlUpgradeable} from "./ExtendedAccessControlUpgradeable.sol";
 
 contract Stablecoin is
-    Initializable,            // Used for contract initialization purposes.
-    ContextUpgradeable,       // Provides basic functionality from the Context contract.
-    ERC20Upgradeable,         // Represents an upgradeable ERC20 token.
-    PausableUpgradeable,      // Provides functionality to pause and unpause the contract.
-    AccessControlUpgradeable, // Manages access roles for the contract.
-    ERC20PermitUpgradeable,   // ERC20 token with a permit function (off-chain approval).
-    BlacklistableUpgradable   // Allows certain addresses to be blacklisted.
+    Initializable, // Used for contract initialization purposes.
+    ContextUpgradeable, // Provides basic functionality from the Context contract.
+    ERC20Upgradeable, // Represents an upgradeable ERC20 token.
+    ERC20PausableUpgradeable, // Provides functionality to pause and unpause the contract.
+    ExtendedAccessControlUpgradeable, // Manages access roles for the contract.
+    ERC20PermitUpgradeable, // ERC20 token with a permit function (off-chain approval).
+    ERC20BlacklistableUpgradable // Allows certain addresses to be blacklisted.
 {
     // Define constants for various roles using the keccak256 hash of the role names.
     bytes32 public constant BLACKLIST_ROLE = keccak256("BLACKLIST_ROLE");
-    bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
-    bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
     bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
+    bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
+    bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -37,14 +37,14 @@ contract Stablecoin is
         string memory name = "Forte AUD";
         __ERC20_init(name, "AUDF");
         __Pausable_init();
-        __AccessControl_init();
+        __ExtendedAccessControl_init();
         __ERC20Permit_init(name);
         __ERC20Blacklistable_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
-        _grantRole(BLACKLIST_ROLE, _admin);
-        _grantRole(PAUSE_ROLE, _admin);
-        _grantRole(MINT_ROLE, _admin);
-        _grantRole(BURN_ROLE, _admin);
+        _addRole(BLACKLIST_ROLE);
+        _addRole(BURN_ROLE);
+        _addRole(MINT_ROLE);
+        _addRole(PAUSE_ROLE);
+        _grantRoles(_admin);
     }
 
     /**
@@ -53,20 +53,6 @@ contract Stablecoin is
      */
     function decimals() public view virtual override returns (uint8) {
         return 6;
-    }
-
-    /**
-     * @dev Hook that is called before any token transfer, ensuring transfers are not paused or between blacklisted addresses.
-     * @param from The sender's address.
-     * @param to The recipient's address.
-     * @param amount Amount of tokens being transferred.
-     */
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal override whenNotPaused notBlacklisted(from) notBlacklisted(to) {
-        super._beforeTokenTransfer(from, to, amount);
     }
 
     /**
@@ -140,5 +126,14 @@ contract Stablecoin is
     function burn(address _account, uint256 _amount) public onlyRole(BURN_ROLE) {
         _spendAllowance(_account, _msgSender(), _amount);
         _burn(_account, _amount);
+    }
+
+    // The following functions are overrides required by Solidity.
+    function _update(
+        address from,
+        address to,
+        uint256 value
+    ) internal override(ERC20Upgradeable, ERC20PausableUpgradeable, ERC20BlacklistableUpgradable) {
+        super._update(from, to, value);
     }
 }

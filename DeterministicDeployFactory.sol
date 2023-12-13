@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
-
-error DeployError();
+pragma solidity ^0.8.20;
 
 contract DeterministicDeployFactory {
     event Deploy(address addr);
+
+    error DeployError();
 
     function deploy(bytes memory bytecode, uint256 salt) external payable returns (address addr) {
         uint256 value = msg.value;
