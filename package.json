@@ -1,7 +1,7 @@
 {
   "name": "fortecoin-contracts",
   "version": "1.0.0",
-  "description": "fortecoin-contracts",
+  "description": "wallet-contracts",
   "main": "index.js",
   "scripts": {},
   "author": "Quentin ADAM",
