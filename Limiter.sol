@@ -5,24 +5,24 @@ import {LinkedListLibrary, LinkedList} from "./LinkedList.sol";
 
 using LinkedListLibrary for LinkedList;
 
-struct Transfer {
+struct Operation {
     int amount;
-    uint timestamp;
+    uint256 timestamp;
 }
 
 struct Limiter {
-    uint interval;
-    uint limit;
+    uint256 interval;
+    uint256 limit;
     LinkedList _keys;
-    mapping(uint128 => Transfer) _transfers;
+    mapping(uint128 => Operation) _transfers;
 }
 
 using LimiterLibrary for Limiter;
 
 library LimiterLibrary {
-    function transfers(Limiter storage self) internal view returns (Transfer[] memory) {
-        Transfer[] memory _transfers = new Transfer[](self._keys.length());
-        uint index = 0;
+    function transfers(Limiter storage self) internal view returns (Operation[] memory) {
+        Operation[] memory _transfers = new Operation[](self._keys.length());
+        uint256 index = 0;
         uint128 key = self._keys.first();
         while (key != 0) {
             _transfers[index] = self._transfers[key];
@@ -32,11 +32,11 @@ library LimiterLibrary {
         return _transfers;
     }
 
-    function temporarilyIncreaseLimit(Limiter storage self, uint _limitIncrease) internal {
+    function temporarilyIncreaseLimit(Limiter storage self, uint256 _limitIncrease) internal {
         _addUncheckedTransfer(self, -int(_limitIncrease));
     }
 
-    function temporarilyDecreaseLimit(Limiter storage self, uint _limitDecrease) internal {
+    function temporarilyDecreaseLimit(Limiter storage self, uint256 _limitDecrease) internal {
         _addUncheckedTransfer(self, int(_limitDecrease));
     }
 
@@ -69,7 +69,7 @@ library LimiterLibrary {
 
     function _addTransferNode(Limiter storage self, int _amount) private {
         uint128 key = self._keys.generate();
-        self._transfers[key] = Transfer({amount: int(_amount), timestamp: block.timestamp});
+        self._transfers[key] = Operation({amount: int(_amount), timestamp: block.timestamp});
     }
 
     function _addUncheckedTransfer(Limiter storage self, int _amount) private {
@@ -77,7 +77,7 @@ library LimiterLibrary {
         _addTransferNode(self, _amount);
     }
 
-    function addTransfer(Limiter storage self, uint _amount) internal returns (bool) {
+    function addTransfer(Limiter storage self, uint256 _amount) internal returns (bool) {
         _addUncheckedTransfer(self, int(_amount));
         return self.remainingLimit() >= 0;
     }
