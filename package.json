@@ -1,5 +1,5 @@
 {
-  "name": "fortecoin-wallet-contracts",
+  "name": "@fortesecurities/fortecoin-wallet-contracts",
   "version": "1.0.0",
   "description": "fortecoin-wallet-contracts",
   "main": "index.js",
