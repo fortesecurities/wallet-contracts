@@ -32,7 +32,7 @@ struct Beneficiary {
     address account;
     uint256 enabledAt;
     uint256 limit;
-    int remainingLimit;
+    int256 remainingLimit;
     Operation[] transfers;
 }
 
