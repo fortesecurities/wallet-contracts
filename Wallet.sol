@@ -117,7 +117,6 @@ contract Wallet is ExtendedAccessControlUpgradeable {
         _addRole(MINT_ROLE);
         _addRole(TRANSFER_ROLE);
         _grantRoles(_admin);
-        limiter.interval = 24 hours;
     }
 
     /**
@@ -147,7 +146,7 @@ contract Wallet is ExtendedAccessControlUpgradeable {
      * @param _cooldown Cooldown period for the beneficiary.
      */
     function addBeneficiary(address _beneficiary, uint256 _limit, uint256 _cooldown) public onlyRole(BENEFICIARY_ROLE) {
-        beneficiaries.addBeneficiary(_beneficiary, 24 hours, _limit, _cooldown);
+        beneficiaries.addBeneficiary(_beneficiary, _limit, _cooldown);
         emit AddBeneficiary(_beneficiary, _limit, _cooldown);
     }
 
@@ -216,7 +215,7 @@ contract Wallet is ExtendedAccessControlUpgradeable {
      * @dev Returns the list of all transfers within the last 24 hours.
      */
     function getTransfers() public view returns (Operation[] memory) {
-        return limiter.transfers();
+        return limiter.operations();
     }
 
     /**
@@ -305,7 +304,7 @@ contract Wallet is ExtendedAccessControlUpgradeable {
      * @param _amount Amount of tokens to be transferred.
      */
     function transfer(address _beneficiary, uint256 _amount) public onlyRole(TRANSFER_ROLE) {
-        if (!limiter.addTransfer(_amount)) {
+        if (!limiter.addOperation(_amount)) {
             revert LimitExceeded();
         }
         beneficiaries.addBeneficiaryTransfer(_beneficiary, _amount);

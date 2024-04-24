@@ -11,33 +11,32 @@ struct Operation {
 }
 
 struct Limiter {
-    uint256 interval;
     uint256 limit;
     LinkedList _keys;
-    mapping(uint128 => Operation) _transfers;
+    mapping(uint128 => Operation) _operations;
 }
 
 using LimiterLibrary for Limiter;
 
 library LimiterLibrary {
-    function transfers(Limiter storage self) internal view returns (Operation[] memory) {
-        Operation[] memory _transfers = new Operation[](self._keys.length());
+    function operations(Limiter storage self) internal view returns (Operation[] memory) {
+        Operation[] memory _operations = new Operation[](self._keys.length());
         uint256 index = 0;
         uint128 key = self._keys.first();
         while (key != 0) {
-            _transfers[index] = self._transfers[key];
+            _operations[index] = self._operations[key];
             key = self._keys.next(key);
             index++;
         }
-        return _transfers;
+        return _operations;
     }
 
     function temporarilyIncreaseLimit(Limiter storage self, uint256 _limitIncrease) internal {
-        _addUncheckedTransfer(self, -int256(_limitIncrease));
+        _addUncheckedOperation(self, -int256(_limitIncrease));
     }
 
     function temporarilyDecreaseLimit(Limiter storage self, uint256 _limitDecrease) internal {
-        _addUncheckedTransfer(self, int256(_limitDecrease));
+        _addUncheckedOperation(self, int256(_limitDecrease));
     }
 
     function remainingLimit(Limiter storage self) internal view returns (int256) {
@@ -48,37 +47,45 @@ library LimiterLibrary {
         int256 _sum = 0;
         uint128 key = self._keys.first();
         while (key != 0) {
-            if (self._transfers[key].timestamp > block.timestamp - self.interval) {
-                _sum += self._transfers[key].amount;
+            if (self._operations[key].timestamp > block.timestamp - 24 hours) {
+                _sum += self._operations[key].amount;
             }
             key = self._keys.next(key);
         }
         return _sum;
     }
 
-    function _filterTransfers(Limiter storage self) private {
+    function _filterOperations(Limiter storage self) private {
         uint128 key = self._keys.first();
         while (key != 0) {
-            if (self._transfers[key].timestamp > block.timestamp - self.interval) {
+            if (self._operations[key].timestamp > block.timestamp - 24 hours) {
                 break;
             }
-            delete self._transfers[key];
+            delete self._operations[key];
             key = self._keys.remove(key);
         }
     }
 
-    function _addTransferNode(Limiter storage self, int256 _amount) private {
+    function _addOperationNode(Limiter storage self, int256 _amount) private {
         uint128 key = self._keys.generate();
-        self._transfers[key] = Operation({amount: int256(_amount), timestamp: block.timestamp});
+        self._operations[key] = Operation({amount: int256(_amount), timestamp: block.timestamp});
     }
 
-    function _addUncheckedTransfer(Limiter storage self, int256 _amount) private {
-        _filterTransfers(self);
-        _addTransferNode(self, _amount);
+    function _addUncheckedOperation(Limiter storage self, int256 _amount) private {
+        _filterOperations(self);
+        _addOperationNode(self, _amount);
     }
 
-    function addTransfer(Limiter storage self, uint256 _amount) internal returns (bool) {
-        _addUncheckedTransfer(self, int256(_amount));
+    function addOperation(Limiter storage self, uint256 _amount) internal returns (bool) {
+        _addUncheckedOperation(self, int256(_amount));
         return self.remainingLimit() >= 0;
+    }
+
+    function removeOperations(Limiter storage self) internal {
+        uint128 key = self._keys.first();
+        while (key != 0) {
+            delete self._operations[key];
+            key = self._keys.remove(key);
+        }
     }
 }

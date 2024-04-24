@@ -23,7 +23,7 @@ library InternalBeneficiaryLibrary {
                 enabledAt: self.enabledAt,
                 limit: self.limiter.limit,
                 remainingLimit: self.limiter.remainingLimit(),
-                transfers: self.limiter.transfers()
+                transfers: self.limiter.operations()
             });
     }
 }
@@ -53,7 +53,6 @@ library BeneficiariesLibrary {
     function addBeneficiary(
         Beneficiaries storage self,
         address _beneficiary,
-        uint256 _interval,
         uint256 _limit,
         uint256 _cooldown
     ) internal {
@@ -63,7 +62,6 @@ library BeneficiariesLibrary {
         uint128 key = self._keys.generate();
         self._beneficiaries[key].account = _beneficiary;
         self._beneficiaries[key].enabledAt = block.timestamp + _cooldown;
-        self._beneficiaries[key].limiter.interval = _interval;
         self._beneficiaries[key].limiter.limit = _limit;
         self._addressKeys[_beneficiary] = key;
     }
@@ -96,7 +94,7 @@ library BeneficiariesLibrary {
         if (block.timestamp < beneficiary.enabledAt) {
             revert BeneficiaryNotEnabled(_beneficiary);
         }
-        if (!beneficiary.limiter.addTransfer(_amount)) {
+        if (!beneficiary.limiter.addOperation(_amount)) {
             revert BeneficiaryLimitExceeded(_beneficiary);
         }
     }
@@ -125,7 +123,9 @@ library BeneficiariesLibrary {
 
     function removeBeneficiary(Beneficiaries storage self, address _beneficiary) internal {
         uint128 key = _getBeneficiaryKey(self, _beneficiary);
+        self._beneficiaries[key].limiter.removeOperations();
         delete self._beneficiaries[key];
+        delete self._addressKeys[_beneficiary];
         self._keys.remove(key);
     }
 
